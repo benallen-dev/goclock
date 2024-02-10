@@ -34,7 +34,7 @@ func main() {
 	printTime(time.Now())
 	
 	// Start the ticker
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	done := make(chan bool)
 
 	go func() {
