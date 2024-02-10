@@ -2,42 +2,70 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/benallen-dev/goclock/pkg/pretty"
+	"github.com/benallen-dev/goclock/pkg/terminal"
 )
 
-func clearConsole() {
-	fmt.Print("\033[H\033[2J")
-}
-
 func printTime (time time.Time) {
-	fmt.Print("\r\033[K") // Clear the line
-	fmt.Print("Time: ", time.Local().Format("15 : 04 : 05"))
+	terminal.ResetCursor()
+
+	formatted := pretty.FormatTime(time.Hour(), time.Minute(), -1)
+
+	// Add a little space around the time
+	fmt.Println("")
+
+	for _, line := range formatted {
+		fmt.Println(" ", line)
+	}
 }
 
 func main() {
 	
-	ticker := time.NewTicker(500 * time.Millisecond)
-	done := make(chan bool)
+	// Clear the console and hide the cursor
+	terminal.ClearConsole()
+	terminal.HideCursor()
 
-	// Clear the console
-	clearConsole()
+	// Print the time once before the ticker starts
+	printTime(time.Now())
+	
+	// Start the ticker
+	ticker := time.NewTicker(30 * time.Second)
+	done := make(chan bool)
 
 	go func() {
 		for {
 			select {
 			case <-done:
-				fmt.Println("\nReceived done signal. Exiting the goroutine.")
+				fmt.Println("Received done signal. Exiting the goroutine.")
 				return
 			case t := <-ticker.C:
-				time := t.Local()
-				// Do the sexy printing in the console
-				printTime(time)
+				printTime(t.Local())
 			}
 
 		}
 	}()
 
-	time.Sleep(5 * time.Second)
+	// Wait for kill signal
+	osSignal := make(chan os.Signal, 1)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
+	
+	<-osSignal
+
+	// Show the cursor and clear the console
+	terminal.ShowCursor()
+	terminal.ClearConsole()
+	
+	fmt.Println("\nReceived kill signal. Exiting the program.")
+
 	ticker.Stop()
 	done <- true
+
+	// There's a better way but I'm lazy so we're just going to sleep for a bit
+	time.Sleep(5 * time.Millisecond)
+
 }
